@@ -5,6 +5,7 @@ N = 32              # Tamaño del retículo (N x N)
 T = 1          # Temperatura (T_c aprox 2.269) 
 pasos_mc = 1000     # Pasos Monte Carlo totales 
 frecuencia_guardado = 10 # Guardar configuración cada X pasos
+# comentario
 fichero_salida = "ising_data.dat"
 
 def inicializar_sistema(n, ordenada=False):
