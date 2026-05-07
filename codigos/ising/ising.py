@@ -31,7 +31,7 @@ def paso_metropolis(grid, n, temp):
         
         # 2. Calcular diferencia de energía 
         de = calcular_delta_e(grid, i, j, n)
-        
+
         # 3. Probabilidad de aceptación 
         if de <= 0:
             grid[i, j] *= -1
