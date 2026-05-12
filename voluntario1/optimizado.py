@@ -3,13 +3,13 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import time
 import os
-from numba import njit
+from numba import njit, prange
 
 # =============================================================================
 # PARÁMETROS FÍSICOS (VALORES REALISTAS)
 # =============================================================================
 N_SISTEMAS = 80
-G = 1.0 
+G = 1.0
 M_AGUJERO_NEGRO = 4.1e6  # Masa de Sagitario A* en masas solares
 M_SISTEMA = 1.0          # Masa de un sistema estelar (1 masa solar)
 R_COLISION = 0.06
@@ -18,7 +18,7 @@ R_FRONTERA = 15.0        # Ampliado para la escala galáctica
 DIST_INTERACCION = 5.0
 DT = 0.0005              # Reducido para manejar la enorme fuerza central
 SOFTENING = 0.2          # Aumentado para evitar divergencias numéricas
-PASOS_ESTABILIZACION = 5000 
+PASOS_ESTABILIZACION = 5000
 PASOS_MEDICION = 5000
 COLA = 150
 
@@ -28,34 +28,61 @@ if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
 # =============================================================================
-# FUNCIONES OPTIMIZADAS
+# FUNCIONES OPTIMIZADAS (KERNEL PARALELO)
 # =============================================================================
 
-@njit(fastmath=True)
-def get_acc_numba(pos, mass, m_bh, r_limit, softening, G_const):
+@njit(parallel=True, fastmath=True)
+def compute_interactions(pos, mass, m_bh, r_limit_sq, softening, G_const, acc):
+    """
+    Núcleo de cálculo puro. Distribuido entre todos los núcleos de la CPU usando prange.
+    Se evita modificar acc[j] para prevenir condiciones de carrera en memoria compartida.
+    """
     n = pos.shape[0]
-    acc = np.zeros_like(pos)
-    for i in range(n):
-        rx, ry = pos[i, 0], pos[i, 1]
+    
+    for i in prange(n):
+        # 1. Fuerza del Agujero Negro Central
+        rx = pos[i, 0]
+        ry = pos[i, 1]
         r_sq = rx**2 + ry**2
         r_mag = np.sqrt(r_sq)
-        # Fuerza del Agujero Negro Central
+        
         factor_bh = -G_const * m_bh / (r_sq * r_mag + softening)
-        acc[i, 0], acc[i, 1] = rx * factor_bh, ry * factor_bh
+        acc[i, 0] = rx * factor_bh
+        acc[i, 1] = ry * factor_bh
 
-        # Interacciones entre sistemas (N-cuerpos limitado por r_limit)
-        for j in range(i + 1, n):
-            dx, dy = pos[j, 0] - pos[i, 0], pos[j, 1] - pos[i, 1]
+        # 2. Interacciones entre sistemas (N-cuerpos limitado por r_limit)
+        for j in range(n):
+            if i == j:
+                continue # Evitar auto-interacción
+                
+            dx = pos[j, 0] - pos[i, 0]
+            dy = pos[j, 1] - pos[i, 1]
             d_sq = dx**2 + dy**2
-            dist = np.sqrt(d_sq)
-            if dist < r_limit and dist > 0:
+            
+            if d_sq < r_limit_sq:
+                dist = np.sqrt(d_sq)
                 f_mag = G_const * mass / (d_sq * dist + softening)
-                acc[i, 0] += f_mag * dx; acc[i, 1] += f_mag * dy
-                acc[j, 0] -= f_mag * dx; acc[j, 1] -= f_mag * dy
+                
+                # Solo se actualiza la partícula 'i'
+                acc[i, 0] += f_mag * dx
+                acc[i, 1] += f_mag * dy
+
+def get_acc_numba(pos, mass, m_bh, r_limit, softening, G_const):
+    """
+    Función envoltorio. Python gestiona la asignación de memoria (np.zeros_like)
+    y Numba se encarga exclusivamente de las matemáticas.
+    """
+    acc = np.zeros_like(pos)
+    # Se pasa r_limit al cuadrado para evitar hacer raíces cuadradas de más en el filtro
+    compute_interactions(pos, mass, m_bh, r_limit**2, softening, G_const, acc)
     return acc
 
 @njit(fastmath=True)
 def resolver_colisiones_numba(pos, vel, r_col):
+    """
+    Resolutor secuencial. Se mantiene sin parallel=True para evitar corrupción 
+    de datos, ya que ambas partículas (i y j) modifican sus velocidades a la vez.
+    """
     n, r_double = pos.shape[0], 2 * r_col
     for i in range(n):
         for j in range(i + 1, n):
@@ -75,6 +102,9 @@ def resolver_colisiones_numba(pos, vel, r_col):
 # =============================================================================
 
 def main():
+    # --- INICIO DEL CRONÓMETRO ---
+    inicio = time.time()
+
     # Inicialización de posiciones y velocidades circulares
     pos = np.random.uniform(-R_FRONTERA * 0.7, R_FRONTERA * 0.7, (N_SISTEMAS, 2))
     vel = np.zeros_like(pos)
@@ -85,20 +115,20 @@ def main():
 
     acc = get_acc_numba(pos, M_SISTEMA, M_AGUJERO_NEGRO, DIST_INTERACCION, SOFTENING, G)
     total_steps = PASOS_ESTABILIZACION + PASOS_MEDICION
-    
+
     historial_inercia = []
     historial_densidad = []
     fotogramas = []
-    
+
     fig_anim, ax_anim = plt.subplots(figsize=(7, 7))
-    print(f"Calculando {total_steps} pasos")
+    print(f"Calculando {total_steps} pasos...")
 
     # Bucle Temporal (Verlet en Velocidad)
     for step in range(total_steps):
         # 1. Actualización de posición
         v_half = vel + acc * DT / 2.0
         pos += v_half * DT
-        
+
         # 2. Gestión de fronteras y absorción
         for i in range(N_SISTEMAS):
             r_mag = np.sqrt(pos[i,0]**2 + pos[i,1]**2)
@@ -117,11 +147,9 @@ def main():
 
         # 4. Toma de datos en fase de medición
         if step >= PASOS_ESTABILIZACION:
-            # Momento de inercia: I = sum(m * r^2)
             I = np.sum(M_SISTEMA * np.sum(pos**2, axis=1))
             historial_inercia.append(I)
-            
-            # Densidad radial
+
             radios = np.sqrt(np.sum(pos**2, axis=1))
             counts, bins = np.histogram(radios, bins=25, range=(0, R_FRONTERA))
             areas = np.pi * (bins[1:]**2 - bins[:-1]**2)
@@ -135,8 +163,7 @@ def main():
             fotogramas.append([p_pos, p_bh])
 
     # --- GUARDADO DE RESULTADOS ---
-    
-    # 1. Guardar GIF
+
     print("Generando simulación...")
     ax_anim.set_xlim(-R_FRONTERA, R_FRONTERA)
     ax_anim.set_ylim(-R_FRONTERA, R_FRONTERA)
@@ -145,26 +172,31 @@ def main():
     ani.save(os.path.join(OUTPUT_DIR, "simulacion_opt.gif"), writer="pillow")
     plt.close(fig_anim)
 
-    # 2. Generar y guardar Gráfica de Análisis
     print("Generando gráficas de análisis...")
     densidad_media = np.mean(historial_densidad, axis=0)
     bin_centers = (bins[:-1] + bins[1:]) / 2
-    
+
     fig_res, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-    
     ax1.plot(bin_centers, densidad_media, color='blue', lw=2)
     ax1.set_title("Perfil de Densidad Radial")
     ax1.set_xlabel("Distancia al Centro (r)"); ax1.set_ylabel("Densidad")
     ax1.grid(True, alpha=0.3)
-    
+
     ax2.plot(historial_inercia, color='green')
     ax2.set_title("Evolución del Momento de Inercia (I)")
     ax2.set_xlabel("Pasos de medición"); ax2.set_ylabel("I")
     ax2.grid(True, alpha=0.3)
-    
+
     plt.tight_layout()
     plt.savefig(os.path.join(OUTPUT_DIR, "analisis_galaxia_opt.png"))
-    print(f"Éxito. Archivos guardados.")
+    
+    # --- FIN DEL CRONÓMETRO Y SALIDA ---
+    fin = time.time()
+    duracion = fin - inicio
+    print(f"\n" + "="*30)
+    print(f"Éxito. Archivos guardados en: {OUTPUT_DIR}")
+    print(f"Tiempo total de ejecución: {duracion:.2f} segundos")
+    print("="*30)
 
 if __name__ == "__main__":
     main()
