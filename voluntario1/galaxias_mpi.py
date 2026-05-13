@@ -42,7 +42,7 @@ start_idx = rank * n_local
 end_idx = (rank + 1) * n_local if rank != size - 1 else N_SISTEMAS
 
 # =============================================================================
-# FUNCIONES MATEMÁTICAS (Secuencial local)
+# FUNCIONES MATEMÁTICAS (Secuencial local con Plummer estricto)
 # =============================================================================
 
 @njit(fastmath=True)
@@ -51,15 +51,18 @@ def compute_local_acc(pos, start, end, m_bh, m_sys, r_limit_sq, softening, G_con
     n_local = end - start
     local_acc = np.zeros((n_local, 2))
     
+    # Calculamos el cuadrado del softening una sola vez por eficiencia
+    soft_sq = softening**2
+    
     for local_i in range(n_local):
         global_i = start + local_i
         
         rx = pos[global_i, 0]
         ry = pos[global_i, 1]
         r_sq = rx**2 + ry**2
-        r_mag = np.sqrt(r_sq)
         
-        factor_bh = -G_const * m_bh / (r_sq * r_mag + softening)
+        # FÓRMULA DE PLUMMER PARA EL AGUJERO NEGRO: M / (r^2 + e^2)^(3/2)
+        factor_bh = -G_const * m_bh / ((r_sq + soft_sq)**1.5)
         local_acc[local_i, 0] = rx * factor_bh
         local_acc[local_i, 1] = ry * factor_bh
 
@@ -72,8 +75,8 @@ def compute_local_acc(pos, start, end, m_bh, m_sys, r_limit_sq, softening, G_con
             d_sq = dx**2 + dy**2
             
             if d_sq < r_limit_sq:
-                dist = np.sqrt(d_sq)
-                f_mag = G_const * m_sys / (d_sq * dist + softening)
+                # FÓRMULA DE PLUMMER ENTRE ESTRELLAS: M / (r^2 + e^2)^(3/2)
+                f_mag = G_const * m_sys / ((d_sq + soft_sq)**1.5)
                 local_acc[local_i, 0] += f_mag * dx
                 local_acc[local_i, 1] += f_mag * dy
                 
@@ -150,7 +153,6 @@ def main():
                         
                     theta = np.random.uniform(0, 2 * np.pi)
                     pos[i] = R_FRONTERA * np.array([np.cos(theta), np.sin(theta)])
-                    # La nueva velocidad orbital usa la masa actualizada
                     v_reg = np.sqrt(G * m_bh_actual / R_FRONTERA) * np.random.uniform(0.8, 0.95)
                     vel[i] = np.array([-pos[i, 1], pos[i, 0]]) / R_FRONTERA * v_reg
                     v_half[i] = vel[i]
@@ -159,7 +161,7 @@ def main():
 
         # Sincronización en cada paso
         pos = comm.bcast(pos, root=0)
-        m_bh_actual = comm.bcast(m_bh_actual, root=0)  # El Jefe distribuye la nueva masa
+        m_bh_actual = comm.bcast(m_bh_actual, root=0) 
         
         local_acc = compute_local_acc(pos, start_idx, end_idx, m_bh_actual, M_SISTEMA, DIST_INTERACCION**2, SOFTENING, G)
         gathered_acc = comm.gather(local_acc, root=0)

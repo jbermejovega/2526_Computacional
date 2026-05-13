@@ -8,7 +8,7 @@ from numba import njit, prange
 # =============================================================================
 # PARÁMETROS FÍSICOS (VALORES REALISTAS)
 # =============================================================================
-N_SISTEMAS = 80
+N_SISTEMAS = 500
 G = 1.0
 M_AGUJERO_NEGRO = 4.1e6  # Masa de Sagitario A* en masas solares
 M_SISTEMA = 1.0          # Masa de un sistema estelar (1 masa solar)
@@ -17,7 +17,7 @@ R_ABSORCION = 0.5
 R_FRONTERA = 15.0        # Ampliado para la escala galáctica
 DIST_INTERACCION = 5.0
 DT = 0.0005              # Reducido para manejar la enorme fuerza central
-SOFTENING = 0.2          # Aumentado para evitar divergencias numéricas
+SOFTENING = 0.2          # Parámetro de suavizado de Plummer
 PASOS_ESTABILIZACION = 5000
 PASOS_MEDICION = 5000
 COLA = 150
@@ -28,25 +28,25 @@ if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
 # =============================================================================
-# FUNCIONES OPTIMIZADAS (KERNEL PARALELO)
+# FUNCIONES OPTIMIZADAS (KERNEL PARALELO CON PLUMMER ESTRICTO)
 # =============================================================================
 
 @njit(parallel=True, fastmath=True)
 def compute_interactions(pos, mass, m_bh, r_limit_sq, softening, G_const, acc):
     """
     Núcleo de cálculo puro. Distribuido entre todos los núcleos de la CPU usando prange.
-    Se evita modificar acc[j] para prevenir condiciones de carrera en memoria compartida.
+    Implementa la fórmula analítica de Plummer para el softening.
     """
     n = pos.shape[0]
+    soft_sq = softening**2
     
     for i in prange(n):
-        # 1. Fuerza del Agujero Negro Central
+        # 1. Fuerza del Agujero Negro Central (Fórmula de Plummer)
         rx = pos[i, 0]
         ry = pos[i, 1]
         r_sq = rx**2 + ry**2
-        r_mag = np.sqrt(r_sq)
         
-        factor_bh = -G_const * m_bh / (r_sq * r_mag + softening)
+        factor_bh = -G_const * m_bh / ((r_sq + soft_sq)**1.5)
         acc[i, 0] = rx * factor_bh
         acc[i, 1] = ry * factor_bh
 
@@ -60,8 +60,8 @@ def compute_interactions(pos, mass, m_bh, r_limit_sq, softening, G_const, acc):
             d_sq = dx**2 + dy**2
             
             if d_sq < r_limit_sq:
-                dist = np.sqrt(d_sq)
-                f_mag = G_const * mass / (d_sq * dist + softening)
+                # Fórmula de Plummer entre estrellas
+                f_mag = G_const * mass / ((d_sq + soft_sq)**1.5)
                 
                 # Solo se actualiza la partícula 'i'
                 acc[i, 0] += f_mag * dx
