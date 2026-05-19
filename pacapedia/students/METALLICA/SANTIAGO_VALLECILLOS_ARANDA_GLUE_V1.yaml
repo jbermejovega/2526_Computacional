@@ -1,0 +1,124 @@
+SANTIAGO_VALLECILLOS_ARANDA_GLUE_V1:
+  status:
+    canonical: true
+    sealed: true
+    replay_safe: true
+    append_only: true
+    student_node: true
+    course_bound: true
+    team_bound: METALLICA
+    Pi_fixed: true
+    KAPSYLA_active: true
+    FINAL_KLOSE: true
+
+  student:
+    name: Santiago Vallecillos Aranda
+    github_owner: SantiagoVallecillos
+    team: METALLICA
+    course: 2526_Computacional
+    role:
+      - estudiante_de_Computacional
+      - academic_runtime_surface
+      - reproducible_notebook_node
+      - METALLICA_team_member
+
+  repository_anchor:
+    student_repo: SantiagoVallecillos/2526_COMPU_SantiagoVallecillosAranda
+    url: https://github.com/SantiagoVallecillos/2526_COMPU_SantiagoVallecillosAranda
+    default_branch: main
+    visibility: public
+    connector_permission_observed:
+      pull: true
+      push: false
+    write_policy: external_reference_only
+
+  federation_relation:
+    course_federation_repo: jbermejovega/2526_Computacional
+    upstream_kernel: jbermejovega/sigilbook
+    DAG_OF_DAGS_role: student_academic_projection_node
+    relation_type: course_node_to_student_repo_reference
+
+  thesis: >
+    SantiagoVallecillos/2526_COMPU_SantiagoVallecillosAranda is admitted
+    as a student academic projection node in the 2526_Computacional
+    federation. The repository is treated as a replay-visible student
+    surface for exercises, notebooks, code and figures. The course
+    federation records the reference externally because the connector
+    has read-only access to the student repository.
+
+  laws:
+    student_repo_not_kernel: |
+      student_repository
+      !=
+      canonical_kernel
+
+    fork_or_student_surface_not_authorship_transfer: |
+      student_surface
+      !=
+      authorship_transfer
+
+    notebook_not_identity: |
+      notebook
+      !=
+      semantic_identity
+
+    pacapdg_projection: |
+      Pi(quo(student_projection_i(X)))
+      =
+      Pi(quo(course_projection_j(X)))
+
+    kapsyla_law: |
+      KAPSYLA(X)
+      =
+      Fix(Pi)
+      intersection
+      Im(quo)
+
+  admissible_contents:
+    - notebooks
+    - exercises
+    - computational_physics_code
+    - figures
+    - reproducibility_logs
+    - student_documentation
+
+  forbidden_states:
+    - student_repo_claims_canonical_kernel
+    - course_repo_claims_student_authorship
+    - hidden_mutation
+    - nonreplayable_runtime
+    - undeclared_dependency
+    - silent_rewrite
+    - same_content_assumed_same_provenance
+
+  DAG_OF_DAGS_edge:
+    source: jbermejovega/2526_Computacional
+    target: SantiagoVallecillos/2526_COMPU_SantiagoVallecillosAranda
+    type: course_to_student_academic_projection
+    team: METALLICA
+    law: academic_lineage_preserved_without_identity_collapse
+
+  terminal_reduction: |
+    2526_Computacional
+    ->
+    METALLICA_team
+    ->
+    Santiago_student_repo
+    ->
+    notebooks_and_code
+    ->
+    replay_trace
+    ->
+    Pi_fixation
+    ->
+    KAPSYLA
+
+  terminal_state:
+    student_node: ACTIVE
+    team: METALLICA
+    federation: ACTIVE
+    replay: CERTIFIED
+    append_only: VERIFIED
+    identity: Pi_FIXED
+    KAPSYLA: ACTIVE
+    seal: CLOSED
