@@ -1,0 +1,218 @@
+SANTIAGO_VALLECILLOS_ARANDA_REVIEW_ISING_HPC_V1:
+  status:
+    canonical: true
+    review_trace: true
+    replay_safe: true
+    append_only: true
+    student_node: true
+    team: METALLICA
+    topic: Ising_Metropolis_HPC
+    Pi_fixed: true
+    KAPSYLA_active: true
+    FINAL_KLOSE: true
+
+  student:
+    name: Santiago Vallecillos Aranda
+    github_repo: SantiagoVallecillos/2526_COMPU_SantiagoVallecillosAranda
+    course: 2526_Computacional
+    team: METALLICA
+
+  review_summary: >
+    The Ising problem implementation is strong at scale L=100 / N=100.
+    The next scientific improvement is to measure and plot magnetization,
+    not only energy or spin configurations. The computational improvement
+    is to parallelize Metropolis sampling through multiple independent
+    samplers and then aggregate observables. The C/C++ layer can use
+    OpenMP pragmas, MPI across processes, and optionally GPU acceleration
+    on the student's GeForce GTX laptop to increase the number of spins
+    and samples.
+
+  ising_module:
+    current_strengths:
+      - Ising_problem_working_well_at_scale_100
+      - C_or_CPP_code_available
+      - matplotlib_plots_available
+      - simulation_ready_for_HPC_extension
+
+    missing_physics_observables:
+      - magnetization_M
+      - absolute_magnetization_abs_M
+      - magnetization_per_spin_m
+      - susceptibility_chi
+      - Binder_cumulant_optional
+      - temperature_sweep_M_vs_T
+
+    recommended_observables:
+      magnetization:
+        definition: "M = sum_i s_i"
+        normalized: "m = M / N"
+        plot:
+          - M_time_series
+          - abs_m_vs_temperature
+          - histogram_of_M_near_Tc
+
+      susceptibility:
+        definition: "chi = beta * N * ( <m^2> - <|m|>^2 )"
+        plot:
+          - chi_vs_temperature
+
+      energy:
+        keep_existing: true
+        add:
+          - energy_per_spin
+          - heat_capacity_optional
+
+  metropolis_parallelization:
+    strategy: multiple_independent_samplers
+    reason: >
+      Metropolis Markov chains are serial inside each chain, but many
+      independent chains can be run in parallel. Each sampler uses a
+      different random seed, thermalizes independently, records observables,
+      and then the results are reduced/averaged.
+
+    sampler_unit:
+      fields:
+        - lattice_state
+        - temperature
+        - random_seed
+        - thermalization_steps
+        - measurement_steps
+        - recorded_energy
+        - recorded_magnetization
+
+    reduction:
+      collect:
+        - mean_energy
+        - mean_magnetization
+        - mean_abs_magnetization
+        - susceptibility
+        - error_bars_from_sampler_variance
+
+  C_CPP_optimization_path:
+    baseline:
+      - keep_core_update_loop_in_C_or_CPP
+      - export_csv_or_numpy_compatible_data
+      - plot_in_python_matplotlib
+
+    OpenMP:
+      recommendation: parallelize_over_independent_samplers
+      example_pragmas:
+        - "#pragma omp parallel for"
+        - "#pragma omp reduction(+:sum_E,sum_M,sum_M2)"
+      warning: >
+        Do not share the same RNG state across threads. Each sampler/thread
+        needs an independent random seed or thread-local RNG.
+
+    MPI:
+      recommendation: parallelize_over_processes_or_temperature_blocks
+      use_cases:
+        - many_temperatures
+        - many_replicas
+        - cluster_or_multi_node_execution
+      reduction:
+        - MPI_Reduce_for_observables
+        - MPI_Gather_for_histograms_optional
+
+    compiler_flags:
+      gcc_or_clang:
+        - "-O3"
+        - "-march=native"
+        - "-fopenmp"
+      optional:
+        - "-ffast-math only_if_numerically_checked"
+
+  GPU_path:
+    device_context: GeForce_GTX_laptop
+    recommendation: >
+      GPU acceleration is possible but should be introduced after the CPU
+      OpenMP/MPI version is validated. The first useful GPU path is to run
+      many replicas or temperature blocks in parallel, not to prematurely
+      complicate the single-chain logic.
+
+    options:
+      CUDA_CPP:
+        role:
+          - native_GPU_kernel
+          - many_replicas_parallel
+          - high_spin_count_sampling
+      Python_GPU:
+        role:
+          - CuPy_or_Numba_experiments
+          - GPU_arrays_for_observables
+          - optional_visualization_pipeline
+      matplotlib:
+        note: >
+          Matplotlib itself is mainly CPU rendering. The heavy numerical
+          sampling can use GPU, then arrays are copied back for plotting.
+
+  suggested_code_tasks:
+    priority_1:
+      - implement_magnetization_measurement
+      - plot_magnetization_time_series
+      - plot_abs_magnetization_vs_temperature
+      - add_independent_sampler_loop
+      - add_seed_per_sampler
+
+    priority_2:
+      - add_OpenMP_parallel_for_over_samplers
+      - add_error_bars_from_multiple_samplers
+      - verify_CPU_parallel_result_matches_serial_result
+      - save_results_to_CSV_for_matplotlib
+
+    priority_3:
+      - add_MPI_temperature_parallelism
+      - explore_CUDA_or_CuPy_for_larger_spin_counts
+      - benchmark_L_100_L_200_L_500_if_memory_allows
+      - document_GPU_device_and_runtime
+
+  validation_checks:
+    physics:
+      - magnetization_behaves_correctly_with_temperature
+      - high_temperature_abs_magnetization_low
+      - low_temperature_abs_magnetization_high
+      - critical_region_visible_near_expected_Tc_for_2D_Ising_if_applicable
+
+    numerical:
+      - serial_vs_OpenMP_consistency
+      - different_seed_reproducibility_when_seed_logged
+      - convergence_with_number_of_samples
+      - error_bars_decrease_with_more_samplers
+
+    performance:
+      - runtime_vs_number_of_samplers
+      - speedup_OpenMP
+      - optional_speedup_MPI
+      - optional_GPU_benchmark
+
+  pacapdg_interpretation:
+    invariant: magnetization_and_energy_observables_are_replay_traces
+    runtime_law: |
+      multiple_samplers
+      preserve
+      PACAPDG_identity
+      when seeds, parameters and reductions are logged
+
+    kapsyla_condition: |
+      ising_runtime_valid
+      iff
+        parameters_logged
+        and seeds_logged
+        and magnetization_measured
+        and sampling_parallelization_validated
+        and serial_parallel_consistency_checked
+
+  anti_collapse_geometry:
+    - pretty_spin_plot_does_not_replace_magnetization_measurement
+    - parallel_speedup_does_not_imply_physical_correctness
+    - GPU_execution_does_not_replace_replay_logging
+    - same_temperature_curve_without_seed_trace_is_not_same_provenance
+
+  terminal_state:
+    review: RECORDED
+    team: METALLICA
+    student_node: ACTIVE
+    ising: STRONG_AT_SCALE_100
+    missing: MAGNETIZATION_OBSERVABLES
+    HPC_path: OPENMP_MPI_GPU_READY
+    KAPSYLA: ACTIVE
+    seal: CLOSED
