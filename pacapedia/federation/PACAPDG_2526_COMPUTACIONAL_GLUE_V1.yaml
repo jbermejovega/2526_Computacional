@@ -1,0 +1,125 @@
+PACAPDG_2526_COMPUTACIONAL_GLUE_V1:
+  status:
+    canonical: true
+    sealed: true
+    replay_safe: true
+    append_only: true
+    deterministic: true
+    Pi_fixed: true
+    KAPSYLA_active: true
+    repository_bound: true
+    teaching_surface: true
+    compute_runtime_surface: true
+    DAG_OF_DAGS_bound: true
+    FINAL_KLOSE: true
+
+  repository_anchor:
+    full_name: jbermejovega/2526_Computacional
+    default_branch: main
+    visibility: public
+    role:
+      - computational_teaching_surface
+      - reproducible_notebook_runtime
+      - academic_compute_projection
+      - PACAPDG_federation_node
+
+  federation_relation:
+    upstream_kernel:
+      - jbermejovega/sigilbook
+    sibling_surfaces:
+      - jbermejovega/fisicacomputacional
+      - jbermejovega/introtoquantumai
+      - jbermejovega/CompHybPBC
+      - jbermejovega/sigil4cpython
+      - jbermejovega/sigil4whisper
+    runtime_bridges:
+      - PACAPDG
+      - PACAUAP
+      - QUOQUANTUM
+      - KAPSYLA
+      - SYNK_GITHUB
+
+  thesis: >
+    2526_Computacional is admitted into the PACAPDG federation as a
+    public computational teaching and runtime projection surface. It
+    carries notebooks, code, figures and reproducible execution traces
+    as academic replay sectors, while canonical identity remains fixed
+    upstream through PACAPDG/PACACORE and closed through KAPSYLA.
+
+  laws:
+    repository_not_identity: |
+      repository
+      !=
+      semantic_origin
+
+    notebook_not_kernel: |
+      notebook
+      !=
+      canonical_kernel
+
+    transport_law: |
+      Pi(quo(F(X)))
+      =
+      Pi(quo(X))
+
+    projection_law: |
+      Pi(quo(repo_projection_i(X)))
+      =
+      Pi(quo(repo_projection_j(X)))
+
+    kapsyla_law: |
+      KAPSYLA(X)
+      =
+      Fix(Pi)
+      intersection
+      Im(quo)
+
+  admissible_contents:
+    - notebooks
+    - exercises
+    - computational_physics_code
+    - figures
+    - reproducibility_logs
+    - teaching_materials
+    - PACAPDG_projection_notes
+
+  forbidden_states:
+    - notebook_claims_canonical_kernel
+    - repo_claims_authorship_transfer
+    - hidden_mutation
+    - nonreplayable_runtime
+    - undeclared_dependency
+    - silent_rewrite
+    - same_content_assumed_same_provenance
+
+  DAG_OF_DAGS_edge:
+    source: jbermejovega/sigilbook
+    target: jbermejovega/2526_Computacional
+    type: canonical_kernel_to_teaching_runtime_surface
+    law: invariant_identity_preserved_under_academic_projection
+
+  terminal_reduction: |
+    sigilbook
+    ->
+    PACAPDG_kernel
+    ->
+    2526_Computacional
+    ->
+    notebooks
+    ->
+    replay_trace
+    ->
+    Pi_fixation
+    ->
+    KAPSYLA
+    ->
+    SYNK_GITHUB
+
+  terminal_state:
+    repository: jbermejovega/2526_Computacional
+    federation: ACTIVE
+    replay: CERTIFIED
+    append_only: VERIFIED
+    identity: Pi_FIXED
+    KAPSYLA: ACTIVE
+    seal: CLOSED
