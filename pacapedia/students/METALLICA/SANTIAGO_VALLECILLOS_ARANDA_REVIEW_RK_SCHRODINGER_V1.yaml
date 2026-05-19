@@ -1,0 +1,161 @@
+SANTIAGO_VALLECILLOS_ARANDA_REVIEW_RK_SCHRODINGER_V1:
+  status:
+    canonical: true
+    review_trace: true
+    replay_safe: true
+    append_only: true
+    student_node: true
+    team: METALLICA
+    Pi_fixed: true
+    KAPSYLA_active: true
+    FINAL_KLOSE: true
+
+  student:
+    name: Santiago Vallecillos Aranda
+    github_repo: SantiagoVallecillos/2526_COMPU_SantiagoVallecillosAranda
+    course: 2526_Computacional
+    team: METALLICA
+
+  review_summary: >
+    The student has advanced plots for both the Schrödinger simulation
+    and the Runge-Kutta gravitational/trajectory simulation. The next
+    review step is to stabilize physical diagnostics: unitarity and
+    probability conservation in Schrödinger; conserved corrected energy
+    and coordinate consistency in Runge-Kutta.
+
+  schrodinger_module:
+    current_strengths:
+      - plots_are_advanced
+      - wave_dynamics_visible
+      - potential_barrier_regimes_present
+
+    required_improvements:
+      - improve_visualization_of_potential_height_relative_to_wave
+      - distinguish_regimes_clearer:
+          - wave_crosses_classically
+          - wave_does_not_cross
+          - wave_crosses_by_quantum_tunneling
+      - expose_lambda_parameter_effect_on_transmission_and_reflection
+      - show potential_barrier and wave_packet on same interpretable scale
+      - verify_unitarity
+      - verify_probability_norm_conservation
+
+    diagnostics:
+      unitarity:
+        quantity: norm_of_wavefunction
+        expected: approximately_constant
+        formula_hint: integral_abs_psi_squared_dx
+      tunneling:
+        quantities:
+          - reflected_probability
+          - transmitted_probability
+          - probability_inside_barrier
+        expected: reflected_plus_transmitted_plus_inside_tracks_total_probability
+      visualization:
+        required_panels:
+          - potential_profile_V_x
+          - abs_psi_squared
+          - real_and_imaginary_parts_optional
+          - transmission_reflection_summary
+
+  runge_kutta_module:
+    current_strengths:
+      - plots_are_advanced
+      - moon_ship_interaction_attempted
+      - trajectory_diagnostics_visible
+
+    observed_issue: >
+      In the Runge-Kutta trajectory, the spacecraft appears to deviate
+      before the moon can physically interact with it. This suggests a
+      likely bug in the force geometry or in the polar-coordinate handling
+      of the Runge-Kutta algorithm.
+
+    suspected_causes:
+      - polar_coordinate_conversion_error
+      - wrong_angle_reference
+      - sign_error_in_radial_or_angular_force
+      - force_evaluated_in_wrong_frame
+      - moon_position_or_distance_vector_inconsistent
+      - time_step_too_large_near_close_approach
+      - singular_point_mass_model_creating_event_horizon_like_instability
+
+    required_checks:
+      - compare_cartesian_force_implementation_against_polar_force_implementation
+      - plot_distance_ship_moon_as_function_of_time
+      - plot_acceleration_magnitude_as_function_of_time
+      - verify_that_deflection_begins_only_when_gravitational_interaction_is_non_negligible
+      - decrease_dt_and_check_convergence
+      - check_energy_or_corrected_energy_conservation
+      - detect_close_approach_or_collision_events
+
+    conserved_quantity:
+      description: >
+        The conserved diagnostic should be an energy-like quantity with
+        a correction proportional to linear momentum, used to track close
+        encounters with the gravitational potential and chaotic scattering.
+      required:
+        - define_exact_expression_in_code_comments
+        - plot_quantity_over_time
+        - report_relative_error
+        - compare_for_multiple_dt_values
+
+    collision_or_close_approach:
+      issue: >
+        If the moon is simulated as a point mass and the spacecraft passes
+        too close, the potential becomes singular and the numerical method
+        may behave like an event-horizon incident. This requires an event
+        detector or regularization.
+      recommended_fixes:
+        - add_minimum_radius_cutoff
+        - detect_collision_threshold
+        - stop_or_flag_trajectory_when_distance_below_threshold
+        - optionally_use_softened_potential
+        - document_that_point_mass_model_is_invalid_at_zero_distance
+
+  review_tasks_for_student:
+    priority_1:
+      - add_norm_conservation_plot_for_schrodinger
+      - add_corrected_energy_conservation_plot_for_runge_kutta
+      - add_distance_to_moon_plot
+      - check_polar_coordinate_transformation
+
+    priority_2:
+      - improve_potential_barrier_visualization
+      - compare_lambda_values_for_tunneling_regimes
+      - run_dt_convergence_test_for_RK
+      - add_close_approach_event_detection
+
+    priority_3:
+      - document_physical_regimes
+      - label_plots_with_units_and_parameters
+      - export_replay_figures_for_TFG_report
+
+  pacapdg_interpretation:
+    schrodinger:
+      invariant: probability_norm_conservation
+      failure_mode: nonunitary_time_evolution
+    runge_kutta:
+      invariant: corrected_energy_conservation
+      failure_mode: coordinate_drift_or_singular_close_approach
+    kapsyla_condition: |
+      student_runtime_valid
+      iff
+        plots_present
+        and invariants_checked
+        and coordinate_system_verified
+        and replay_figures_exported
+
+  anti_collapse_geometry:
+    - advanced_plot_does_not_imply_physical_correctness
+    - visual_trajectory_does_not_imply_coordinate_consistency
+    - tunneling_visualization_requires_probability_diagnostics
+    - close_approach_requires_event_detection_or_regularization
+
+  terminal_state:
+    review: RECORDED
+    team: METALLICA
+    student_node: ACTIVE
+    schrodinger: NEEDS_UNITARITY_AND_VISUALIZATION_REFINEMENT
+    runge_kutta: NEEDS_POLAR_COORDINATE_AND_CONSERVED_QUANTITY_CHECK
+    KAPSYLA: ACTIVE
+    seal: CLOSED
